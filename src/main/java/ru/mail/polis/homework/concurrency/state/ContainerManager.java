@@ -1,20 +1,8 @@
 package ru.mail.polis.homework.concurrency.state;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BinaryOperator;
-import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
 
 
 /**
@@ -27,24 +15,14 @@ import java.util.stream.DoubleStream;
 public class ContainerManager {
 
     private final List<CalculateContainer<Double>> calculateContainers;
-    private final CountDownLatch countDownLatch;
-    private final int amountOfOperations = 1_000_000;
-    private final ExecutorService initExecutor = Executors.newCachedThreadPool();
-    private final ExecutorService runAndFinishExecutor = Executors.newFixedThreadPool(2);
-    private final ExecutorService closeExecutor = Executors.newSingleThreadExecutor();
 
     /**
      * Создайте список из непустых контейнеров
      */
     public ContainerManager(int containersCount) {
-        countDownLatch = new CountDownLatch(containersCount);
-        Random random = new Random();
-        this.calculateContainers = DoubleStream.generate(random::nextDouble)
-                .boxed()
-                .map(CalculateContainer::new)
-                .limit(containersCount)
-                .collect(Collectors.toList());
+        this.calculateContainers = null;
     }
+
 
     /**
      * Используйте executor c расширяемым количеством потоков,
@@ -54,12 +32,7 @@ public class ContainerManager {
      * Каждый контейнер надо исполнять отдельно.
      */
     public void initContainers() {
-        UnaryOperator<Double> operation = operation(Math::sqrt);
-        for (CalculateContainer<Double> container : calculateContainers) {
-            for (int i = 0; i < amountOfOperations; i++) {
-                initExecutor.execute(() -> container.init(operation));
-            }
-        }
+
     }
 
 
@@ -71,12 +44,7 @@ public class ContainerManager {
      * Каждый контейнер надо исполнять отдельно.
      */
     public void runContainers() {
-        BinaryOperator<Double> operation = operation(Math::pow);
-        for (CalculateContainer<Double> container : calculateContainers) {
-            for (int i = 0; i < amountOfOperations; i++) {
-                runAndFinishExecutor.execute(() -> container.run(operation, 2d));
-            }
-        }
+
     }
 
 
@@ -87,9 +55,7 @@ public class ContainerManager {
      * Каждый контейнер надо исполнять отдельно.
      */
     public void finishContainers() {
-        for (CalculateContainer<Double> container : calculateContainers) {
-            runAndFinishExecutor.execute(() -> container.finish(item -> System.out.println("finished with result: " + item)));
-        }
+
     }
 
 
@@ -104,17 +70,7 @@ public class ContainerManager {
      * как только закроются все 10 контейеров
      */
     public void closeContainers() {
-        for (CalculateContainer<Double> container : calculateContainers) {
-            closeExecutor.execute(() -> container.close(result -> {
-                countDownLatch.countDown();
-                System.out.println("closed with result: " + result);
-            }));
-        }
-        try {
-            countDownLatch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+
     }
 
     /**
@@ -125,7 +81,7 @@ public class ContainerManager {
      * Учтите, что время передается в милисекундах.
      */
     public boolean await(long timeoutMillis) throws Exception {
-        return countDownLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+        return false;
     }
 
     public List<CalculateContainer<Double>> getCalculateContainers() {
@@ -138,7 +94,6 @@ public class ContainerManager {
 
             for (int i = 0; i < 1000; i++) {
                 result = operator.apply(result);
-                System.out.println("Success operation. Res: " + result);
             }
             return result;
         };
@@ -149,9 +104,9 @@ public class ContainerManager {
             T result = start;
             for (int i = 0; i < 1000; i++) {
                 result = operator.apply(result, delta);
-                System.out.println("Success operation. Res: " + result);
             }
             return result;
         };
     }
+
 }
